@@ -36,4 +36,4 @@ def load_srt_de(data, channel_norm,label_type, num_windows):
     label_repeat = []
     for i in range(len(label)):
         label_repeat = label_repeat + [label[i]]*n_samples[i]
-    return label_repeat
+    return label_repeat, n_samples, n_samples_cum

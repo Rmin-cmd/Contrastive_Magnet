@@ -173,6 +173,8 @@ class Model(torch.nn.Module):
 
         self.cprelu = cvnn.CPReLU()
 
+        self.criterion = torch.nn.CrossEntropyLoss().to(device)
+
         self.fc1 = torch.nn.Linear(num_hidden, num_proj_hidden)
         # self.fc1 = cvnn.CVLinear(num_hidden, num_proj_hidden)
         self.fc2 = torch.nn.Linear(num_proj_hidden, num_hidden)
@@ -197,15 +199,15 @@ class Model(torch.nn.Module):
 
     def semi_loss(self, z1: torch.Tensor, z2: torch.Tensor):
         f = lambda x: torch.exp(x / self.tau)
-        # refl_sim = f(self.sim(z1, z1))
+        refl_sim = f(self.sim(z1, z1))
         between_sim = f(self.sim(z1, z2))
 
-        # return -torch.log(
-        #     between_sim.diag()
-        #     / (refl_sim.sum(1) + between_sim.sum(1) - refl_sim.diag()))
         return -torch.log(
             between_sim.diag()
-            / (between_sim.sum(1)))
+            / (refl_sim.sum(1) + between_sim.sum(1) - refl_sim.diag()))
+        # return -torch.log(
+        #     between_sim.diag()
+        #     / (between_sim.sum(1)))
 
     def batch_semi_loss(self, z1: torch.Tensor, z2: torch.Tensor,
                           batch_size: int):
@@ -214,6 +216,45 @@ class Model(torch.nn.Module):
         z1, z2 = z1[idx], z2[idx]
         return self.semi_loss(z1,z2)
 
+    # def info_nce_loss(self, features):
+    #     bs = int(features.shape[0] // 2)
+    #     labels = torch.cat([torch.arange(bs) for i in range(self.args.n_views)], dim=0)
+    #     labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
+    #     labels = labels.to(self.device)
+    #
+    #     # Normlize the features according to subject
+    #     features = F.normalize(features, dim=1)
+    #
+    #     similarity_matrix = torch.matmul(features, features.T)
+    #
+    #     # discard the main diagonal from both: labels and similarities matrix
+    #     mask = torch.eye(labels.shape[0], dtype=torch.bool).to(self.device)
+    #     labels = labels[~mask].view(labels.shape[0], -1)
+    #     similarity_matrix = similarity_matrix[~mask].view(similarity_matrix.shape[0], -1)
+    #     # assert similarity_matrix.shape == labels.shape
+    #
+    #     # select and combine multiple positives
+    #     positives = similarity_matrix[labels.bool()].view(labels.shape[0], -1)
+    #     # print('positives:', positives.shape)
+    #
+    #     # select only the negatives
+    #     negatives = similarity_matrix[~labels.bool()].view(similarity_matrix.shape[0], -1)
+    #
+    #     # logits = torch.cat([positives, negatives], dim=1)
+    #     # labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.args.device)
+    #
+    #     # Put the positive column at the end (when all the entries are the same, the top1 acc will be 0; while if the
+    #     # positive column is at the start, the top1 acc might be exaggerated)
+    #     logits = torch.cat([negatives, positives], dim=1)
+    #     # The label means the last column contain the positive pairs
+    #     labels = torch.ones(logits.shape[0], dtype=torch.long)*(logits.shape[1]-1)
+    #     labels = labels.to(self.device)
+    #
+    #     logits = logits / self.args.temperature
+    #
+    #     contrastive_loss = self.criterion(logits, labels)
+    #
+    #     return contrastive_loss
     def contrastive_loss(self, z1: torch.Tensor, z2: torch.Tensor,
              mean: bool = True):
         h1 = self.projection(z1)
@@ -224,6 +265,7 @@ class Model(torch.nn.Module):
         l2 = self.semi_loss(h2, h1)
 
         ret = (l1 + l2) * 0.5
+        # ret = l1
         ret = ret.mean() if mean else ret.sum()
         return ret
 

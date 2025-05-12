@@ -12,6 +12,7 @@ from utils.perturb import *
 from Model_magnet.encoding_loss_function import *
 from sklearn.metrics import confusion_matrix
 from scipy.signal import hilbert
+from utils.io_utils import *
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -45,12 +46,12 @@ def contrastive_graph_construction(graphs, K):
     return np.array(L1), np.array(L2)
 
 
-
-
 def dataloader(data_train, label_train, A_pdc_train, data_val, label_val,  A_pdc_valid, batch_size):
 
-    feature_imag_train = np.imag(hilbert(data_train, axis=-1))
-    feature_imag_valid = np.imag(hilbert(data_val, axis=-1))
+    # feature_imag_train = np.imag(hilbert(data_train, axis=-1))
+    feature_imag_train = data_train
+    # feature_imag_valid = np.imag(hilbert(data_val, axis=-1))
+    feature_imag_valid = data_val
 
     feature_real_train, feature_imag_train = torch.FloatTensor(data_train.reshape(-1, data_train.shape[-1])).to(device),\
                                              torch.FloatTensor(feature_imag_train.reshape(-1, data_train.shape[-1])).to(device)
@@ -112,7 +113,8 @@ def train_valid(model, optimizer, K, epochs, train_loader, valid_loader, writer=
 
         for i, (graphs, X_real, X_imag, label) in enumerate(train_loader):
 
-            L1, L2 = contrastive_graph_construction(graphs, K)
+            label = label.to(device)
+            L1, L2 = contrastive_graph_construction(graphs.squeeze(), K)
             L1, L2 = torch.tensor(L1).to(device), torch.tensor(L2).to(device)
 
             start_time = time.time()
@@ -123,13 +125,15 @@ def train_valid(model, optimizer, K, epochs, train_loader, valid_loader, writer=
             # Train
             ####################
             count  = 0.0
-            X_real, X_imag = X_real.reshape([-1, 30, 5]), X_imag.reshape([-1, 30, 5])
+            X_real, X_imag = X_real.squeeze().reshape([-1, 30, 5]).to(device), \
+                             X_imag.squeeze().reshape([-1, 30, 5]).to(device)
             z1 = model(X_real, X_imag, L1)
             z2 = model(X_real, X_imag, L2)
             # new loss definition
             # train_loss, pred_label= loss_function(criterion, preds, labels, label, beta=beta, test_flag=True)
             # train_loss, pred_label= loss_function(criterion, preds, labels, label, beta=beta, distance_metric='orth')
             contrastive_loss = model.contrastive_loss(z1, z2)
+            # contrastive_loss = model.info_nce_loss(z)
             label_loss = model.label_loss(z1, z2, label)
             train_loss = 0.2 * contrastive_loss + label_loss
             loss_train += train_loss.detach().item()
@@ -151,14 +155,16 @@ def train_valid(model, optimizer, K, epochs, train_loader, valid_loader, writer=
         with torch.no_grad():
 
             for i, (graphs, X_real, X_imag, label) in enumerate(valid_loader):
-                L1, L2 = contrastive_graph_construction(graphs, K)
+                label = label.to(device)
+                L1, L2 = contrastive_graph_construction(graphs.squeeze(), K)
                 L1, L2 = torch.tensor(L1).to(device), torch.tensor(L2).to(device)
 
                 ####################
                 # Valid
                 ####################
                 count = 0.0
-                X_real, X_imag = X_real.reshape([-1, 30, 5]), X_imag.reshape([-1, 30, 5])
+                X_real, X_imag = X_real.squeeze().reshape([-1, 30, 5]).to(device), \
+                                 X_imag.squeeze().reshape([-1, 30, 5]).to(device)
                 z1 = model(X_real, X_imag, L1)
                 z2 = model(X_real, X_imag, L2)
 

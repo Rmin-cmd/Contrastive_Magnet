@@ -96,7 +96,7 @@ for fold in tqdm(range(n_folds)):
     feature_pdc = sio.loadmat(data_dir)['de_lds']
     # feature_pdc = np.random.random(feature_pdc.shape)
 
-    label_repeat = load_data.load_srt_de(feature_pdc, True, label_type, 11)
+    label_repeat, n_samples, n_samples_cum = load_data.load_srt_de(feature_pdc, True, label_type, 11)
 
     if fold < n_folds - 1:
         val_sub = np.arange(n_per * fold, n_per * (fold + 1))
@@ -110,7 +110,18 @@ for fold in tqdm(range(n_folds)):
         val_sub, feature_pdc,
         A_pdc, label_repeat)
 
-    train_loader, valid_loader = dataloader(data_train, label_train, A_pdc_train, data_test, label_test, A_pdc_test, batch_size=batch_size)
+    trainset = EmotionDataset(data_train, A_pdc_train, label_train, transform=None)
+    valset = EmotionDataset(data_test, A_pdc_test, label_test)
+
+    train_sampler = TrainSampler(len(train_sub), batch_size=batch_size,
+                                 n_samples=n_samples)
+    val_sampler = TrainSampler(len(val_sub), batch_size=batch_size,
+                               n_samples=n_samples)
+
+    # train_loader, valid_loader = dataloader(data_train, label_train, A_pdc_train, data_test, label_test, A_pdc_test, batch_size=batch_size)
+
+    train_loader = DataLoader(trainset, sampler=train_sampler, pin_memory=True)
+    valid_loader = DataLoader(valset, sampler=val_sampler, pin_memory=True)
 
     encoder = ChebNet(5, num_filter=64, dropout=0.2, K=K).to(device)
 
