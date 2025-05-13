@@ -50,9 +50,11 @@ def disparity_filter_adjacency(adj_matrix, alpha=0.05):
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-data_path = 'preprocessed_data\preprocessed_connectivity\processed_conn_30_mod_4.mat'
+# data_path = 'preprocessed_data\preprocessed_connectivity\processed_conn_30_mod_4.mat'
+data_path = os.path.join('preprocessed_data', 'preprocessed_connectivity', 'processed_conn_30_mod_4.mat')
 
-root_dir = r'preprocessed_data\preprocessed_feature\smooth_preprocessed_28' # for 1-second window
+# root_dir = r'preprocessed_data\preprocessed_feature\smooth_preprocessed_28' # for 1-second window
+root_dir = os.path.join('preprocessed_data', 'preprocessed_feature', 'smooth_preprocessed_28') # for 1-second window
 
 log_path = 'saved_model'
 
