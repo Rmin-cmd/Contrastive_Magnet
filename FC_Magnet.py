@@ -60,7 +60,7 @@ log_path = 'saved_model'
 
 n_folds = 10
 num_subs = 123
-batch_size = 64
+batch_size = 30
 lr = 1e-3
 l2 = 5e-4
 n_per = num_subs // n_folds
