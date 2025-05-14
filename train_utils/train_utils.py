@@ -111,7 +111,7 @@ def train_valid(model, optimizer, K, epochs, train_loader, valid_loader, writer=
 
         loss_train, train_correct = 0.0, 0.0
 
-        for i, (graphs, X_real, X_imag, label) in enumerate(train_loader):
+        for i, (graphs, X_real, X_imag, label) in enumerate(tqdm(train_loader)):
 
             label = label.to(device)
             L1, L2 = contrastive_graph_construction(graphs.squeeze(), K)
@@ -174,7 +174,7 @@ def train_valid(model, optimizer, K, epochs, train_loader, valid_loader, writer=
                 # train_correct += (pred_label.squeeze() == label).sum().detach().item()
                 loss_valid += valid_loss.detach().item()
                 pred_ += pred_label
-                label_ += label.tolist()
+                label_ += label.squeeze().tolist()
 
         final_metrics = met_calc.compute_metrics(torch.tensor([pred_]).to(device),
                                  torch.tensor([label_]).to(device))
